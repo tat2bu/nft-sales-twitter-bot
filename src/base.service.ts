@@ -1,10 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
-
 import twit from 'twit';
 
-import { BigNumber, ethers } from 'ethers';
-import { hexToNumberString, hexToString, stripHexPrefix } from 'web3-utils';
+import { ethers } from 'ethers';
 
 import { catchError, firstValueFrom, map, Observable, of, switchMap, timer } from 'rxjs';
 
@@ -18,18 +16,12 @@ import looksRareABI from './abi/looksRareABI.json';
 import { config } from './config';
 import fiatSymbols from './fiat-symobols.json';
 
-const alchemyAPIUrl = 'https://eth-mainnet.alchemyapi.io/v2/';
-const alchemyAPIKey = process.env.ALCHEMY_API_KEY;
+export const alchemyAPIUrl = 'https://eth-mainnet.alchemyapi.io/v2/';
+export const alchemyAPIKey = process.env.ALCHEMY_API_KEY;
 
 const tokenContractAddress = config.contract_address;
-const looksRareContractAddress = '0x59728544b08ab483533076417fbbb2fd0b17ce3a'; // Don't change unless deprecated
 
 const provider = new ethers.providers.JsonRpcProvider(alchemyAPIUrl + alchemyAPIKey);
-const looksInterface = new ethers.utils.Interface(looksRareABI);
-
-// This can be an array if you want to filter by multiple topics
-// 'Transfer' topic
-const topics = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
 const twitterConfig = {
   consumer_key: process.env.TW_CONSUMER_KEY,
@@ -40,114 +32,36 @@ const twitterConfig = {
 
 const twitterClient = new twit(twitterConfig);
 
-interface Response {
+export enum TweetType {
+  SALE,
+  BID_ENTERED
+}
+
+export interface TweetRequest {
   from: any;
-  to: any;
+  to?: any;
   tokenId: string;
   ether: number;
   transactionHash: string;
-  looksRareValue: number;
+  alternateValue: number;
   imageUrl?: string;
+  type:TweetType;
 }
 
 @Injectable()
-export class AppService {
+export class BaseService {
   
   fiatValues: any;
 
   constructor(
-    private readonly http: HttpService
+    protected readonly http: HttpService
   ) {
 
     this.getEthToFiat().subscribe((fiat) => this.fiatValues = fiat.ethereum);
-
-    // Listen for Transfer event
-    provider.on({ address: tokenContractAddress, topics: [topics] }, (tx) => {
-      this.getTransactionDetails(tx).then((res) => {
-
-        // Only tweet transfers with value (Ignore w2w transfers)
-        if (res?.ether || res?.looksRareValue) this.tweet(res);
-        // If free mint is enabled we can tweet 0 value
-        else if (config.includeFreeMint) this.tweet(res);
-
-        // console.log(res);
-      });
-    });
   }
 
-  async getTransactionDetails(tx: any): Promise<any> {
-
-    let tokenId: string;
-
-    try {
-
-      // Get addresses of seller / buyer from topics
-      let from = ethers.utils.defaultAbiCoder.decode(['address'], tx?.topics[1])[0];
-      let to = ethers.utils.defaultAbiCoder.decode(['address'], tx?.topics[2])[0];
-
-      // Get tokenId from topics
-      tokenId = hexToNumberString(tx?.topics[3]);
-
-      // Get transaction hash
-      const { transactionHash } = tx;
-      const isMint = BigNumber.from(from).isZero();
-
-      // Get transaction
-      const transaction = await provider.getTransaction(transactionHash);
-      const { value } = transaction;
-      const ether = ethers.utils.formatEther(value.toString());
-
-      // Get transaction receipt
-      const receipt: any = await provider.getTransactionReceipt(transactionHash);
-
-      // Get token image
-      const imageUrl = await this.getTokenMetadata(tokenId);
-
-      // Check if LooksRare & parse the event & get the value
-      let looksRareValue = 0;
-      const LR = receipt.logs.map((log: any) => {
-        if (log.address.toLowerCase() === looksRareContractAddress.toLowerCase()) {  
-          return looksInterface.parseLog(log);
-        }
-      }).filter((log: any) => log?.name === 'TakerAsk');
-
-      if (LR.length) {
-        const weiValue = (LR[0]?.args?.price)?.toString();
-        const value = ethers.utils.formatEther(weiValue);
-        looksRareValue = parseFloat(value);
-      }
-
-      // If ens is configured, get ens addresses
-      let ensTo: string;
-      let ensFrom: string;
-      if (config.ens) {
-        ensTo = await provider.lookupAddress(`${to}`);
-        ensFrom = await provider.lookupAddress(`${from}`);
-      }
-
-      // Set the values for address to & from -- Shorten non ens
-      to = config.ens ? (ensTo ? ensTo : this.shortenAddress(to)) : this.shortenAddress(to);
-      from = (isMint && config.includeFreeMint) ? 'Mint' : config.ens ? (ensFrom ? ensFrom : this.shortenAddress(from)) : this.shortenAddress(from);
-
-      // Create response object
-      const response: Response = {
-        from,
-        to,
-        tokenId,
-        ether: parseFloat(ether),
-        transactionHash,
-        looksRareValue
-      };
-
-      // If the image was successfully obtained
-      if (imageUrl) response.imageUrl = imageUrl;
-
-      return response;
-
-    } catch (err) {
-      console.log(`${tokenId} failed to send`);
-      return null;
-    }
+  getWeb3Provider() {
+      return provider
   }
 
   shortenAddress(address: string): string {
@@ -176,19 +90,19 @@ export class AppService {
     );
   }
 
-  async tweet(data: any) {
+  async tweet(data: TweetRequest) {
 
-    let tweetText: string;
+    let tweetText: string = data.type === TweetType.SALE ? config.saleMessage : config.bidMessage;
 
     // Cash value
-    const fiatValue = this.fiatValues[config.currency] * (data.ether ? data.ether : data.looksRareValue);
+    const fiatValue = this.fiatValues[config.currency] * (data.ether ? data.ether : data.alternateValue);
     const fiat = currency(fiatValue, { symbol: fiatSymbols[config.currency].symbol, precision: 0 });
 
-    const ethValue = data.ether ? data.ether : data.looksRareValue;
+    const ethValue = data.alternateValue ? data.alternateValue : data.ether;
     const eth = currency(ethValue, { symbol: 'Ξ', precision: 3 });
 
     // Replace tokens from config file
-    tweetText = config.message.replace(new RegExp('<tokenId>', 'g'), data.tokenId);
+    tweetText = tweetText.replace(new RegExp('<tokenId>', 'g'), data.tokenId);
     tweetText = tweetText.replace(new RegExp('<ethPrice>', 'g'), eth.format());
     tweetText = tweetText.replace(new RegExp('<txHash>', 'g'), data.transactionHash);
     tweetText = tweetText.replace(new RegExp('<from>', 'g'), data.from);
@@ -249,6 +163,7 @@ export class AppService {
   }
 
   transformImage(value: string): string {
+    //return value.replace('https://gateway.pinata.cloud/ipfs/QmSv6qnW1zCqiYBHCJKbfBu8YAcJefUYtPsDea3TsG2PHz/notpunk', 'file://./token_images/phunk');
     let val: any = value;
     if (value?.includes('gateway.pinata.cloud')) {
       val = value.replace('gateway.pinata.cloud', 'cloudflare-ipfs.com');

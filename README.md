@@ -14,9 +14,25 @@ $ npm install
 
 1. Create `.env` file & add contents from `example.env` -- Add your API credentials.
 2. Edit the `src/config.ts` file to add your smart contract & customize the tweet parameters.
-3. Edit `src/app.service.ts` to customize for your use (Experienced users only & not a requirement).
+3. Edit `src/erc721sales.service.ts` to customize for your use (Experienced users only & not a requirement).
 4. Build & Deploy `npm run build`
 5. Feel free to reach out on twitter
+
+## Plugins / extendability
+
+You can create custom interactions by implementing custom extensions by extending the `BaseService` base
+class, an example is provided in  the `extensions/phunks.bid.extension.service.ts`. Once implemented, you can activate an extension by importing it in the `AppModule` service providers, ie:
+
+```
+@Module({
+  imports: [HttpModule],
+  controllers: [],
+  providers: [
+    Erc721SalesService, 
+    PhunksBidService,
+  ],
+})
+```
 
 ## Running the app
 
