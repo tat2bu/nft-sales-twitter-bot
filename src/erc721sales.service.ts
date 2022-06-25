@@ -45,10 +45,10 @@ export class Erc721SalesService extends BaseService {
         // console.log(res);
       });
     });
-   /*
+  /*
     const tokenContract = new ethers.Contract(config.contract_address, erc721abi, this.provider);
     let filter = tokenContract.filters.Transfer();
-    tokenContract.queryFilter(filter, 15024627, 15024627).then(events => {
+    tokenContract.queryFilter(filter, 15024882, 15024883).then(events => {
       for (const event of events) {
         this.getTransactionDetails(event).then((res) => {
           if (!res) return
@@ -75,7 +75,8 @@ export class Erc721SalesService extends BaseService {
       let to = ethers.utils.defaultAbiCoder.decode(['address'], tx?.topics[2])[0];
 
       // ignore internal gemswap transfers
-      if (to.toLowerCase() === '0x83c8f28c26bf6aaca652df1dbbe0e1b56f8baba2') {
+      if (to.toLowerCase() === '0x83c8f28c26bf6aaca652df1dbbe0e1b56f8baba2' ||
+          to.toLowerCase() === '0xae9c73fd0fd237c1c6f66fe009d24ce969e98704') {
         return
       }
       // Get tokenId from topics
@@ -128,7 +129,7 @@ export class Erc721SalesService extends BaseService {
         if (log.topics[0].toLowerCase() === '0x9d9af8e38d66c62e2c12f0225249fd9d721c54b83f48d9352c97c6cacdcb6f31') {
           const data = log.data.substring(2);
           const dataSlices = data.match(/.{1,64}/g);
-          const amount = (BigInt(`0x${dataSlices[8]}`) + BigInt(`0x${dataSlices[13]}`)) / BigInt('1000000000000000')
+          const amount = (BigInt(`0x${dataSlices[18]}`) + BigInt(`0x${dataSlices[13]}`) + BigInt(`0x${dataSlices[23]}`)) / BigInt('1000000000000000')
           return amount
         }
       }).filter(n => n !== undefined)      
