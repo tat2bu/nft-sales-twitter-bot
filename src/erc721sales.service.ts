@@ -45,12 +45,13 @@ export class Erc721SalesService extends BaseService {
         // console.log(res);
       });
     });
-    /*
+   /*
     const tokenContract = new ethers.Contract(config.contract_address, erc721abi, this.provider);
     let filter = tokenContract.filters.Transfer();
-    tokenContract.queryFilter(filter, 15024313, 15024314).then(events => {
+    tokenContract.queryFilter(filter, 15024627, 15024627).then(events => {
       for (const event of events) {
         this.getTransactionDetails(event).then((res) => {
+          if (!res) return
           console.log(res)
           // Only tweet transfers with value (Ignore w2w transfers)
           if (res?.ether || res?.alternateValue) this.tweet(res);
@@ -101,7 +102,7 @@ export class Erc721SalesService extends BaseService {
         if (log.address.toLowerCase() === looksRareContractAddress.toLowerCase()) {  
           return looksInterface.parseLog(log);
         }
-      }).filter((log: any) => log?.name === 'TakerAsk');
+      }).filter((log: any) => log?.name === 'TakerAsk' || log?.name === 'TakerBid');
       const NFTX = receipt.logs.map((log: any) => {
         if (log.topics[0].toLowerCase() === '0x1cdb5ee3c47e1a706ac452b89698e5e3f2ff4f835ca72dde8936d0f4fcf37d81') {  
           const relevantData = log.data.substring(2);
