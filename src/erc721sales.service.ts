@@ -35,9 +35,9 @@ export class Erc721SalesService extends BaseService {
     
 
     // Listen for Transfer event
-    this.provider.on({ address: tokenContractAddress, topics: [topics] }, (tx) => {
-      this.getTransactionDetails(tx).then((res) => {
-
+    this.provider.on({ address: tokenContractAddress, topics: [topics] }, (event) => {
+      this.getTransactionDetails(event).then((res) => {
+        if (!res) return
         // Only tweet transfers with value (Ignore w2w transfers)
         if (res?.ether || res?.alternateValue) this.tweet(res);
         // If free mint is enabled we can tweet 0 value
@@ -73,6 +73,10 @@ export class Erc721SalesService extends BaseService {
       let from = ethers.utils.defaultAbiCoder.decode(['address'], tx?.topics[1])[0];
       let to = ethers.utils.defaultAbiCoder.decode(['address'], tx?.topics[2])[0];
 
+      // ignore internal gemswap transfers
+      if (to.toLowerCase() === '0x83c8f28c26bf6aaca652df1dbbe0e1b56f8baba2') {
+        return
+      }
       // Get tokenId from topics
       tokenId = hexToNumberString(tx?.topics[3]);
 
