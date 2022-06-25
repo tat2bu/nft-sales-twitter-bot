@@ -45,10 +45,13 @@ export class Erc721SalesService extends BaseService {
         // console.log(res);
       });
     });
-  /*
+  
+    /*
     const tokenContract = new ethers.Contract(config.contract_address, erc721abi, this.provider);
     let filter = tokenContract.filters.Transfer();
-    tokenContract.queryFilter(filter, 15024882, 15024883).then(events => {
+    tokenContract.queryFilter(filter, 
+      15025127, 
+      15025128).then(events => {
       for (const event of events) {
         this.getTransactionDetails(event).then((res) => {
           if (!res) return
@@ -125,11 +128,23 @@ export class Erc721SalesService extends BaseService {
           return amount
         }
       }).filter(n => n !== undefined)  
+      // console.log(tx.hash, tokenId)
       const OPENSEA_BID = receipt.logs.map((log: any) => {
         if (log.topics[0].toLowerCase() === '0x9d9af8e38d66c62e2c12f0225249fd9d721c54b83f48d9352c97c6cacdcb6f31') {
           const data = log.data.substring(2);
           const dataSlices = data.match(/.{1,64}/g);
-          const amount = (BigInt(`0x${dataSlices[18]}`) + BigInt(`0x${dataSlices[13]}`) + BigInt(`0x${dataSlices[23]}`)) / BigInt('1000000000000000')
+          const amounts = 
+          // support WETH and ETH
+          parseInt(dataSlices[8], 16) === 1 ?
+          [
+            BigInt(`0x${dataSlices[13]}`),
+            BigInt(`0x${dataSlices[18]}`),
+            BigInt(`0x${dataSlices[23]}`)
+          ] : [
+            BigInt(`0x${dataSlices[8]}`)
+          ]
+          console.log(amounts)
+          const amount = amounts.reduce((previous,current) => previous + current, BigInt(0)) / BigInt('1000000000000000')
           return amount
         }
       }).filter(n => n !== undefined)      
