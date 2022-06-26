@@ -33,7 +33,6 @@ export class Erc721SalesService extends BaseService {
     super(http)
     this.getEthToFiat().subscribe((fiat) => this.fiatValues = fiat.ethereum);
     
-
     // Listen for Transfer event
     this.provider.on({ address: tokenContractAddress, topics: [topics] }, (event) => {
       this.getTransactionDetails(event).then((res) => {
@@ -50,8 +49,8 @@ export class Erc721SalesService extends BaseService {
     const tokenContract = new ethers.Contract(config.contract_address, erc721abi, this.provider);
     let filter = tokenContract.filters.Transfer();
     tokenContract.queryFilter(filter, 
-      15027739, 
-      15027740).then(events => {
+      15030148, 
+      15030149).then(events => {
       for (const event of events) {
         this.getTransactionDetails(event).then((res) => {
           if (!res) return
@@ -85,6 +84,9 @@ export class Erc721SalesService extends BaseService {
           to.toLowerCase() === '0xf97e9727d8e7db7aa8f006d1742d107cf9411412') {
         return
       }
+      // not an erc721 transfer
+      if (!tx?.topics[3]) return
+
       // Get tokenId from topics
       tokenId = hexToNumberString(tx?.topics[3]);
 
@@ -101,7 +103,9 @@ export class Erc721SalesService extends BaseService {
       const receipt: any = await this.provider.getTransactionReceipt(transactionHash);
 
       // Get token image
-      const imageUrl = await this.getTokenMetadata(tokenId);
+      const imageUrl = config.use_local_images 
+        ? `${config.local_image_path}${tokenId.padStart(4, '0')}.png`
+        : await this.getTokenMetadata(tokenId);
 
       // Check if LooksRare & parse the event & get the value
       let alternateValue = 0;

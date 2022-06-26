@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
+import fs from 'fs';
 import twit from 'twit';
 
 import { ethers } from 'ethers';
@@ -110,7 +111,7 @@ export class BaseService {
     tweetText = tweetText.replace(new RegExp('<fiatPrice>', 'g'), fiat.format());
 
     // Format our image to base64
-    const image = this.transformImage(data.imageUrl);
+    const image = config.use_local_images ? data.imageUrl : this.transformImage(data.imageUrl);
 
     let processedImage: string;
     if (image) processedImage = await this.getBase64(image);
@@ -137,12 +138,16 @@ export class BaseService {
   }
 
   async getBase64(url: string) {
-    return await firstValueFrom(
-      this.http.get(url, { responseType: 'arraybuffer' }).pipe(
-        map((res) => Buffer.from(res.data, 'binary').toString('base64')),
-        catchError(() => of(null))
-      )
-    );
+    if (url.startsWith('http')) {
+      return await firstValueFrom(
+        this.http.get(url, { responseType: 'arraybuffer' }).pipe(
+          map((res) => Buffer.from(res.data, 'binary').toString('base64')),
+          catchError(() => of(null))
+        )
+      );
+    } else {
+      return fs.readFileSync(url, {encoding: 'base64'});
+    }
   }
   
   getEthToFiat(): Observable<any> {
@@ -170,7 +175,7 @@ export class BaseService {
     // } else if (value?.startsWith('data:image')) {
     //   val = `${value}`;
     } else if (value?.startsWith('ipfs://')) {
-      val = value.replace('ipfs://', 'https://cloudflare-ipfs.com/ipfs/');
+      val = value.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
     }
     return val ? val : null;
   }

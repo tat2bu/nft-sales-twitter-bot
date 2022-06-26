@@ -1,6 +1,9 @@
 export const config = {
   // Contract Address ======================================== //
   contract_address: '0xf07468ead8cf26c752c676e43c814fee9c8cf402',
+  use_local_images: true,
+  local_image_path: './token_images/phunk',
+  local_bids_image_path: './bids_images/Phunk_',
   // Fiat Conversion Currency ================================ //
   // Available Options: ====================================== //
   // usd, aud, gbp, eur, cad, jpy, cny ======================= //
