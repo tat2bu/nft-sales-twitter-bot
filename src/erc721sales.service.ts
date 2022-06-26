@@ -45,13 +45,13 @@ export class Erc721SalesService extends BaseService {
         // console.log(res);
       });
     });
-  
+    
     /*
     const tokenContract = new ethers.Contract(config.contract_address, erc721abi, this.provider);
     let filter = tokenContract.filters.Transfer();
     tokenContract.queryFilter(filter, 
-      15025127, 
-      15025128).then(events => {
+      15027739, 
+      15027740).then(events => {
       for (const event of events) {
         this.getTransactionDetails(event).then((res) => {
           if (!res) return
@@ -68,7 +68,8 @@ export class Erc721SalesService extends BaseService {
   }
 
   async getTransactionDetails(tx: any): Promise<any> {
-
+    // if (tx.transactionHash !== '0xcee5c725e2234fd0704e1408cdf7f71d881e67f8bf5d6696a98fdd7c0bcf52f3') return;
+    
     let tokenId: string;
 
     try {
@@ -79,7 +80,8 @@ export class Erc721SalesService extends BaseService {
 
       // ignore internal gemswap transfers
       if (to.toLowerCase() === '0x83c8f28c26bf6aaca652df1dbbe0e1b56f8baba2' ||
-          to.toLowerCase() === '0xae9c73fd0fd237c1c6f66fe009d24ce969e98704') {
+          to.toLowerCase() === '0xae9c73fd0fd237c1c6f66fe009d24ce969e98704' ||
+          to.toLowerCase() === '0x81e7c20cc78e045d18eaa33c9fd6c3ff96a54118') {
         return
       }
       // Get tokenId from topics
@@ -114,6 +116,13 @@ export class Erc721SalesService extends BaseService {
           return BigInt(`0x${relevantDataSlice[1]}`) / BigInt('1000000000000000');
         }
       }).filter(n => n !== undefined)
+      // ignore NFTX swaps
+      for (const log of receipt.logs) {
+        if (log.topics[0].toLowerCase() === '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822') {  
+          console.log('ignoring nftx swap for', transaction.hash)
+          return null
+        }
+      }
       const NLL = receipt.logs.map((log: any) => {
         if (log.topics[0].toLowerCase() === '0x975c7be5322a86cddffed1e3e0e55471a764ac2764d25176ceb8e17feef9392c') {
           const relevantData = log.data.substring(2);
