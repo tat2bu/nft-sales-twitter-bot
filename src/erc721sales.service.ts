@@ -78,10 +78,11 @@ export class Erc721SalesService extends BaseService {
       let from = ethers.utils.defaultAbiCoder.decode(['address'], tx?.topics[1])[0];
       let to = ethers.utils.defaultAbiCoder.decode(['address'], tx?.topics[2])[0];
 
-      // ignore internal gemswap transfers
+      // ignore internal transfers
       if (to.toLowerCase() === '0x83c8f28c26bf6aaca652df1dbbe0e1b56f8baba2' ||
           to.toLowerCase() === '0xae9c73fd0fd237c1c6f66fe009d24ce969e98704' ||
-          to.toLowerCase() === '0x81e7c20cc78e045d18eaa33c9fd6c3ff96a54118') {
+          to.toLowerCase() === '0x81e7c20cc78e045d18eaa33c9fd6c3ff96a54118' ||
+          to.toLowerCase() === '0xf97e9727d8e7db7aa8f006d1742d107cf9411412') {
         return
       }
       // Get tokenId from topics
