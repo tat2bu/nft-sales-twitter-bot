@@ -9,7 +9,7 @@ import { PhunksBidService } from './extensions/phunks.bid.extension.service';
   controllers: [],
   providers: [
     Erc721SalesService, 
-    // PhunksBidService,
+    PhunksBidService,
   ],
 })
 

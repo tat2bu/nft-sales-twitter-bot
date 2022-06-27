@@ -12,7 +12,6 @@ import looksRareABI from './abi/looksRareABI.json';
 import { config } from './config';
 import { BaseService, TweetRequest, TweetType } from './base.service';
 
-const tokenContractAddress = config.contract_address;
 const looksRareContractAddress = '0x59728544b08ab483533076417fbbb2fd0b17ce3a'; // Don't change unless deprecated
 
 const looksInterface = new ethers.utils.Interface(looksRareABI);
@@ -32,7 +31,7 @@ export class Erc721SalesService extends BaseService {
     super(http)
     
     // Listen for Transfer event
-    this.provider.on({ address: tokenContractAddress, topics: [topics] }, (event) => {
+    this.provider.on({ address: config.contract_address, topics: [topics] }, (event) => {
       this.getTransactionDetails(event).then((res) => {
         if (!res) return
         // Only tweet transfers with value (Ignore w2w transfers)
@@ -47,7 +46,7 @@ export class Erc721SalesService extends BaseService {
     /*
     const tokenContract = new ethers.Contract(config.contract_address, erc721abi, this.provider);
     let filter = tokenContract.filters.Transfer();
-    const startingBlock = 15033903 
+    const startingBlock = 15035738 
     tokenContract.queryFilter(filter, 
       startingBlock, 
       startingBlock+1).then(events => {
@@ -154,16 +153,19 @@ export class Erc721SalesService extends BaseService {
         if (log.topics[0].toLowerCase() === '0x9d9af8e38d66c62e2c12f0225249fd9d721c54b83f48d9352c97c6cacdcb6f31') {
           const data = log.data.substring(2);
           const dataSlices = data.match(/.{1,64}/g);
-          const amounts = 
+          const amounts = []
           // support WETH and ETH
-          parseInt(dataSlices[8], 16) === 1 ?
-          [
-            BigInt(`0x${dataSlices[13]}`),
-            BigInt(`0x${dataSlices[18]}`),
-            BigInt(`0x${dataSlices[23]}`)
-          ] : [
-            BigInt(`0x${dataSlices[8]}`)
-          ]
+          if (parseInt(dataSlices[8], 16) === 1) {
+            amounts.push(
+              BigInt(`0x${dataSlices[13]}`),
+              BigInt(`0x${dataSlices[18]}`)
+            )
+            if (dataSlices.length >= 23 ) {
+              amounts.push(BigInt(`0x${dataSlices[23]}`))
+            }
+          } else {
+            amounts.push(BigInt(`0x${dataSlices[8]}`))
+          }
           console.log(amounts)
           const amount = amounts.reduce((previous,current) => previous + current, BigInt(0)) / BigInt('1000000000000000')
           return amount
