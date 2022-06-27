@@ -32,6 +32,7 @@ export class PhunksBidService extends BaseService {
       }
       this.tweet(request);
     });    
+    /*
     const tokenContract = new ethers.Contract('0xd6c037bE7FA60587e174db7A6710f7635d2971e7', notLarvaLabsAbi, this.provider);
     let filter = tokenContract.filters.PhunkBidEntered();
     tokenContract.queryFilter(filter, 15035199, 15035200).then(async (events) => {
@@ -52,6 +53,7 @@ export class PhunksBidService extends BaseService {
         this.tweet(request);
       }
     });
+    */
     
   }
 
