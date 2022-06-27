@@ -96,7 +96,7 @@ export class BaseService {
     let tweetText: string = data.type === TweetType.SALE ? config.saleMessage : config.bidMessage;
 
     // Cash value
-    const fiatValue = this.fiatValues[config.currency] * (data.ether ? data.ether : data.alternateValue);
+    const fiatValue = this.fiatValues[config.currency] * (data.alternateValue ? data.alternateValue : data.ether);
     const fiat = currency(fiatValue, { symbol: fiatSymbols[config.currency].symbol, precision: 0 });
 
     const ethValue = data.alternateValue ? data.alternateValue : data.ether;
@@ -175,7 +175,7 @@ export class BaseService {
     // } else if (value?.startsWith('data:image')) {
     //   val = `${value}`;
     } else if (value?.startsWith('ipfs://')) {
-      val = value.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
+      val = value.replace('ipfs://', 'https://cloudflare-ipfs.com/ipfs/');
     }
     return val ? val : null;
   }

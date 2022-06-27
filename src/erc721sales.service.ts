@@ -24,14 +24,12 @@ const topics = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3
 @Injectable()
 export class Erc721SalesService extends BaseService {
   
-  fiatValues: any;
   provider = this.getWeb3Provider();
 
   constructor(
     protected readonly http: HttpService
   ) {
     super(http)
-    this.getEthToFiat().subscribe((fiat) => this.fiatValues = fiat.ethereum);
     
     // Listen for Transfer event
     this.provider.on({ address: tokenContractAddress, topics: [topics] }, (event) => {
@@ -44,13 +42,15 @@ export class Erc721SalesService extends BaseService {
         // console.log(res);
       });
     });
-    
+    //this.provider.resetEventsBlock(15032374)
+   
     /*
     const tokenContract = new ethers.Contract(config.contract_address, erc721abi, this.provider);
     let filter = tokenContract.filters.Transfer();
+    const startingBlock = 15033903 
     tokenContract.queryFilter(filter, 
-      15030148, 
-      15030149).then(events => {
+      startingBlock, 
+      startingBlock+1).then(events => {
       for (const event of events) {
         this.getTransactionDetails(event).then((res) => {
           if (!res) return
@@ -81,7 +81,8 @@ export class Erc721SalesService extends BaseService {
       if (to.toLowerCase() === '0x83c8f28c26bf6aaca652df1dbbe0e1b56f8baba2' ||
           to.toLowerCase() === '0xae9c73fd0fd237c1c6f66fe009d24ce969e98704' ||
           to.toLowerCase() === '0x81e7c20cc78e045d18eaa33c9fd6c3ff96a54118' ||
-          to.toLowerCase() === '0xf97e9727d8e7db7aa8f006d1742d107cf9411412') {
+          to.toLowerCase() === '0xf97e9727d8e7db7aa8f006d1742d107cf9411412' ||
+          to.toLowerCase() === '0x56dd5bbede9bfdb10a2845c4d70d4a2950163044') {
         return
       }
       // not an erc721 transfer
@@ -134,11 +135,17 @@ export class Erc721SalesService extends BaseService {
           return BigInt(`0x${relevantData}`) / BigInt('1000000000000000')
         }
       }).filter(n => n !== undefined)
-      const X2Y2 = receipt.logs.map((log: any) => {
+
+      const X2Y2 = receipt.logs.map((log: any, index:number) => {
         if (log.topics[0].toLowerCase() === '0x3cbb63f144840e5b1b0a38a7c19211d2e89de4d7c5faf8b2d3c1776c302d1d33') {
           const data = log.data.substring(2);
           const dataSlices = data.match(/.{1,64}/g);
-          const amount = BigInt(`0x${dataSlices[12]}`) / BigInt('1000000000000000');
+          // find the right token
+          if (BigInt(`0x${dataSlices[18]}`).toString() !== tokenId) return;
+          let amount = BigInt(`0x${dataSlices[12]}`) / BigInt('1000000000000000');
+          if (amount === BigInt(0)) {
+            amount = BigInt(`0x${dataSlices[26]}`) / BigInt('1000000000000000');
+          }
           return amount
         }
       }).filter(n => n !== undefined)  
@@ -214,7 +221,7 @@ export class Erc721SalesService extends BaseService {
       return tweetRequest;
 
     } catch (err) {
-      console.log(`${tokenId} failed to send`);
+      console.log(`${tokenId} failed to send`, err);
       return null;
     }
   }
