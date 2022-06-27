@@ -18,6 +18,7 @@ export class PhunksBidService extends BaseService {
 
     // Listen for Bid event
     this.provider.on({ address: '0xd6c037bE7FA60587e174db7A6710f7635d2971e7', topics: ['0x5e5c444a9060fa9489d7e455b3a6f1c2f9b2ac7119c1cee6dc5fe6160c545908'] }, async (event) => {
+      if (event.args.length < 3) return
       const from = event?.args[2];
       const value = ethers.utils.formatEther(event.args.value);
       const imageUrl = `${config.local_bids_image_path}${event.args.phunkIndex}.png`;
