@@ -41,12 +41,11 @@ export class Erc721SalesService extends BaseService {
         // console.log(res);
       });
     });
-    //this.provider.resetEventsBlock(15032374)
-   
-    /*
+    //this.provider.resetEventsBlock(15035787)
+   /*
     const tokenContract = new ethers.Contract(config.contract_address, erc721abi, this.provider);
     let filter = tokenContract.filters.Transfer();
-    const startingBlock = 15035738 
+    const startingBlock = 15035919 
     tokenContract.queryFilter(filter, 
       startingBlock, 
       startingBlock+1).then(events => {
@@ -65,7 +64,7 @@ export class Erc721SalesService extends BaseService {
     */
   }
 
-  async getTransactionDetails(tx: any): Promise<any> {
+  async getTransactionDetails(tx: ethers.Event): Promise<any> {
     // if (tx.transactionHash !== '0xcee5c725e2234fd0704e1408cdf7f71d881e67f8bf5d6696a98fdd7c0bcf52f3') return;
     
     let tokenId: string;
@@ -75,6 +74,13 @@ export class Erc721SalesService extends BaseService {
       // Get addresses of seller / buyer from topics
       let from = ethers.utils.defaultAbiCoder.decode(['address'], tx?.topics[1])[0];
       let to = ethers.utils.defaultAbiCoder.decode(['address'], tx?.topics[2])[0];
+      
+      // ignore sniping bots initial transaction, the later will be handled afterward
+      const code = await this.provider.getCode("0xa5Acc472597C1e1651270da9081Cc5a0b38258E3")
+      if (code !== '0x') {
+        console.log(`contract detected for ${tx.transactionHash} event index ${tx.logIndex}`)
+        return
+      }
 
       // ignore internal transfers
       if (to.toLowerCase() === '0x83c8f28c26bf6aaca652df1dbbe0e1b56f8baba2' ||
