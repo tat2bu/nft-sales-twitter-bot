@@ -41,11 +41,12 @@ export class Erc721SalesService extends BaseService {
         // console.log(res);
       });
     });
-    //this.provider.resetEventsBlock(15035787)
-   /*
+    //this.provider.resetEventsBlock(15048651)
+   
+    /*
     const tokenContract = new ethers.Contract(config.contract_address, erc721abi, this.provider);
     let filter = tokenContract.filters.Transfer();
-    const startingBlock = 15035919 
+    const startingBlock = 15048651 
     tokenContract.queryFilter(filter, 
       startingBlock, 
       startingBlock+1).then(events => {
@@ -76,7 +77,7 @@ export class Erc721SalesService extends BaseService {
       let to = ethers.utils.defaultAbiCoder.decode(['address'], tx?.topics[2])[0];
       
       // ignore sniping bots initial transaction, the later will be handled afterward
-      const code = await this.provider.getCode("0xa5Acc472597C1e1651270da9081Cc5a0b38258E3")
+      const code = await this.provider.getCode(to)
       if (code !== '0x') {
         console.log(`contract detected for ${tx.transactionHash} event index ${tx.logIndex}`)
         return
@@ -98,6 +99,7 @@ export class Erc721SalesService extends BaseService {
 
       // Get transaction hash
       const { transactionHash } = tx;
+      console.log(`handling ${transactionHash}`)
       const isMint = BigNumber.from(from).isZero();
 
       // Get transaction
@@ -161,20 +163,19 @@ export class Erc721SalesService extends BaseService {
           const dataSlices = data.match(/.{1,64}/g);
           const amounts = []
           // support WETH and ETH
+          const tokenCount = BigInt(`0x${dataSlices[4]}`)
           if (parseInt(dataSlices[8], 16) === 1) {
             amounts.push(
-              BigInt(`0x${dataSlices[13]}`),
-              BigInt(`0x${dataSlices[18]}`)
+              BigInt(`0x${dataSlices[dataSlices.length-2]}`),
+              BigInt(`0x${dataSlices[dataSlices.length-7]}`),
+              BigInt(`0x${dataSlices[dataSlices.length-12]}`)
             )
-            if (dataSlices.length >= 23 ) {
-              amounts.push(BigInt(`0x${dataSlices[23]}`))
-            }
           } else {
             amounts.push(BigInt(`0x${dataSlices[8]}`))
           }
           console.log(amounts)
-          const amount = amounts.reduce((previous,current) => previous + current, BigInt(0)) / BigInt('1000000000000000')
-          return amount
+          const amount = amounts.reduce((previous,current) => previous + current, BigInt(0)) / tokenCount
+          return amount / BigInt('1000000000000000')
         }
       }).filter(n => n !== undefined)      
 
