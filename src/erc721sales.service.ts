@@ -44,7 +44,7 @@ export class Erc721SalesService extends BaseService {
     /*
     const tokenContract = new ethers.Contract(config.contract_address, erc721abi, this.provider);
     let filter = tokenContract.filters.Transfer();
-    const startingBlock = 15050063  
+    const startingBlock = 15057478  
     tokenContract.queryFilter(filter, 
       startingBlock, 
       startingBlock+1).then(events => {
@@ -119,7 +119,8 @@ export class Erc721SalesService extends BaseService {
         if (log.address.toLowerCase() === looksRareContractAddress.toLowerCase()) {  
           return looksInterface.parseLog(log);
         }
-      }).filter((log: any) => log?.name === 'TakerAsk' || log?.name === 'TakerBid');
+      }).filter((log: any) => (log?.name === 'TakerAsk' || log?.name === 'TakerBid') &&
+        log?.args.tokenId == tokenId);
       const NFTX = receipt.logs.map((log: any) => {
         if (log.topics[0].toLowerCase() === '0x1cdb5ee3c47e1a706ac452b89698e5e3f2ff4f835ca72dde8936d0f4fcf37d81') {  
           const relevantData = log.data.substring(2);
