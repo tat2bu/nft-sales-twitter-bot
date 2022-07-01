@@ -29,7 +29,6 @@ export class Erc721SalesService extends BaseService {
     protected readonly http: HttpService
   ) {
     super(http)
-    
     // Listen for Transfer event
     this.provider.on({ address: config.contract_address, topics: [topics] }, (event) => {
       this.getTransactionDetails(event).then((res) => {
@@ -41,12 +40,11 @@ export class Erc721SalesService extends BaseService {
         // console.log(res);
       });
     });
-    //this.provider.resetEventsBlock(15048651)
-   
-    /*
+    //this.provider.resetEventsBlock(15050013)
+   /*
     const tokenContract = new ethers.Contract(config.contract_address, erc721abi, this.provider);
     let filter = tokenContract.filters.Transfer();
-    const startingBlock = 15048651 
+    const startingBlock = 15050013 
     tokenContract.queryFilter(filter, 
       startingBlock, 
       startingBlock+1).then(events => {
@@ -127,13 +125,28 @@ export class Erc721SalesService extends BaseService {
           const relevantData = log.data.substring(2);
           const relevantDataSlice = relevantData.match(/.{1,64}/g);
           return BigInt(`0x${relevantDataSlice[1]}`) / BigInt('1000000000000000');
+        } else if (log.topics[0].toLowerCase() === '0x63b13f6307f284441e029836b0c22eb91eb62a7ad555670061157930ce884f4e') {
+          // redeem, find corresponding buy
+          //
+          const buys = receipt.logs.filter((log2: any) => log2.topics[0].toLowerCase() === '0xf7735c8cb2a65788ca663fc8415b7c6a66cd6847d58346d8334e8d52a599d3df')
+            .map(b => {
+              const relevantData = b.data.substring(2);
+              const relevantDataSlice = relevantData.match(/.{1,64}/g);
+              return BigInt(`0x${relevantDataSlice[1]}`)
+            })
+          if (buys.length) {
+            return buys.reduce((previous, current) => previous + current, BigInt(0)) / BigInt('1000000000000000')
+          }
         }
       }).filter(n => n !== undefined)
+
       // ignore NFTX swaps
-      for (const log of receipt.logs) {
-        if (log.topics[0].toLowerCase() === '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822') {  
-          console.log('ignoring nftx swap for', transaction.hash)
-          return null
+      if (NFTX.length === 0) {
+        for (const log of receipt.logs) {
+          if (log.topics[0].toLowerCase() === '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822') {  
+            console.log('ignoring nftx swap for', transaction.hash)
+            return null
+          }
         }
       }
       const NLL = receipt.logs.map((log: any) => {
@@ -192,7 +205,8 @@ export class Erc721SalesService extends BaseService {
           }
           return false;
         });        
-        alternateValue = parseFloat(NFTX[0])/relevantTransferTopic.length/1000;
+        const topicCount = Math.max(relevantTransferTopic.length, 1)
+        alternateValue = parseFloat(NFTX[0])/topicCount/1000;
       } else if (NLL.length) {
         alternateValue = parseFloat(NLL[0])/1000;
       } else if (X2Y2.length) {
