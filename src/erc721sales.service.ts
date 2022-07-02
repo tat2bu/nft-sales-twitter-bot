@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
-
+import {
+  TransactionReceipt
+} from "@ethersproject/abstract-provider";
 import { BigNumber, ethers } from 'ethers';
 import { hexToNumberString } from 'web3-utils';
 import erc721abi from './abi/erc721.json'
@@ -44,7 +46,7 @@ export class Erc721SalesService extends BaseService {
     /*
     const tokenContract = new ethers.Contract(config.contract_address, erc721abi, this.provider);
     let filter = tokenContract.filters.Transfer();
-    const startingBlock = 15057478  
+    const startingBlock = 15062305  
     tokenContract.queryFilter(filter, 
       startingBlock, 
       startingBlock+1).then(events => {
@@ -106,7 +108,7 @@ export class Erc721SalesService extends BaseService {
       const ether = ethers.utils.formatEther(value.toString());
 
       // Get transaction receipt
-      const receipt: any = await this.provider.getTransactionReceipt(transactionHash);
+      const receipt: TransactionReceipt = await this.provider.getTransactionReceipt(transactionHash);
 
       // Get token image
       const imageUrl = config.use_local_images 
@@ -121,6 +123,7 @@ export class Erc721SalesService extends BaseService {
         }
       }).filter((log: any) => (log?.name === 'TakerAsk' || log?.name === 'TakerBid') &&
         log?.args.tokenId == tokenId);
+      
       const NFTX = receipt.logs.map((log: any) => {
         if (log.topics[0].toLowerCase() === '0x1cdb5ee3c47e1a706ac452b89698e5e3f2ff4f835ca72dde8936d0f4fcf37d81') {  
           const relevantData = log.data.substring(2);
@@ -177,7 +180,10 @@ export class Erc721SalesService extends BaseService {
           const dataSlices = data.match(/.{1,64}/g);
           const amounts = []
           // support WETH and ETH
-          const tokenCount = BigInt(`0x${dataSlices[4]}`)
+          const tokenCount = BigInt(receipt.logs.filter(
+            (l) => l.topics[0] === '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+              && l.address === config.contract_address
+          ).length)
           if (parseInt(dataSlices[8], 16) === 1) {
             amounts.push(
               BigInt(`0x${dataSlices[dataSlices.length-2]}`),
@@ -207,13 +213,13 @@ export class Erc721SalesService extends BaseService {
           return false;
         });        
         const topicCount = Math.max(relevantTransferTopic.length, 1)
-        alternateValue = parseFloat(NFTX[0])/topicCount/1000;
+        alternateValue = parseFloat(NFTX[0].toString())/topicCount/1000;
       } else if (NLL.length) {
-        alternateValue = parseFloat(NLL[0])/1000;
+        alternateValue = parseFloat(NLL[0].toString())/1000;
       } else if (X2Y2.length) {
-        alternateValue = parseFloat(X2Y2[0])/1000;
+        alternateValue = parseFloat(X2Y2[0].toString())/1000;
       } else if (OPENSEA_BID.length) {
-        alternateValue = parseFloat(OPENSEA_BID[0])/1000;
+        alternateValue = parseFloat(OPENSEA_BID[0].toString())/1000;
       }
 
       // If ens is configured, get ens addresses
