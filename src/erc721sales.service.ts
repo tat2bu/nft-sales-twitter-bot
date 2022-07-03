@@ -45,10 +45,11 @@ export class Erc721SalesService extends BaseService {
       });
     });
     //this.provider.resetEventsBlock(15050013)
+
     /*
     const tokenContract = new ethers.Contract(config.contract_address, erc721abi, this.provider);
     let filter = tokenContract.filters.Transfer();
-    const startingBlock = 15069402  
+    const startingBlock = 15070829  
     tokenContract.queryFilter(filter, 
       startingBlock, 
       startingBlock+1).then(events => {
@@ -187,10 +188,13 @@ export class Erc721SalesService extends BaseService {
           if (matchingOffers.length === 0) {
             return
           }
-          const amounts = logDescription.args.consideration.map(c => BigInt(c.amount))
+          let amounts = logDescription.args.consideration.map(c => BigInt(c.amount))
           // add weth
           const wethOffers = matchingOffers.map(o => o.token === '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2' ? BigInt(o.amount) : BigInt(0));
-          amounts.push(...wethOffers)
+          if (wethOffers.length > 0) {
+            console.log('found weth offer, using it as amount')
+            amounts = wethOffers
+          }
           console.log(amounts)
           const amount = amounts.reduce((previous,current) => previous + current, BigInt(0))
           return amount / BigInt('1000000000000000') / BigInt(tokenCount)
