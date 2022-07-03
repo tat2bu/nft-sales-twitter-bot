@@ -10,6 +10,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import looksRareABI from './abi/looksRareABI.json';
+import openseaSeaportABI from './abi/seaportABI.json';
 
 import { config } from './config';
 import { BaseService, TweetRequest, TweetType } from './base.service';
@@ -17,6 +18,7 @@ import { BaseService, TweetRequest, TweetType } from './base.service';
 const looksRareContractAddress = '0x59728544b08ab483533076417fbbb2fd0b17ce3a'; // Don't change unless deprecated
 
 const looksInterface = new ethers.utils.Interface(looksRareABI);
+const seaportInterface = new ethers.utils.Interface(openseaSeaportABI);
 
 // This can be an array if you want to filter by multiple topics
 // 'Transfer' topic
@@ -46,7 +48,7 @@ export class Erc721SalesService extends BaseService {
     /*
     const tokenContract = new ethers.Contract(config.contract_address, erc721abi, this.provider);
     let filter = tokenContract.filters.Transfer();
-    const startingBlock = 15062305  
+    const startingBlock = 15069402  
     tokenContract.queryFilter(filter, 
       startingBlock, 
       startingBlock+1).then(events => {
@@ -54,6 +56,7 @@ export class Erc721SalesService extends BaseService {
         this.getTransactionDetails(event).then((res) => {
           if (!res) return
           console.log(res)
+          return
           // Only tweet transfers with value (Ignore w2w transfers)
           if (res?.ether || res?.alternateValue) this.tweet(res);
           // If free mint is enabled we can tweet 0 value
@@ -176,26 +179,21 @@ export class Erc721SalesService extends BaseService {
       // console.log(tx.hash, tokenId)
       const OPENSEA_BID = receipt.logs.map((log: any) => {
         if (log.topics[0].toLowerCase() === '0x9d9af8e38d66c62e2c12f0225249fd9d721c54b83f48d9352c97c6cacdcb6f31') {
-          const data = log.data.substring(2);
-          const dataSlices = data.match(/.{1,64}/g);
-          const amounts = []
-          // support WETH and ETH
-          const tokenCount = BigInt(receipt.logs.filter(
-            (l) => l.topics[0] === '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
-              && l.address === config.contract_address
-          ).length)
-          if (parseInt(dataSlices[8], 16) === 1) {
-            amounts.push(
-              BigInt(`0x${dataSlices[dataSlices.length-2]}`),
-              BigInt(`0x${dataSlices[dataSlices.length-7]}`),
-              BigInt(`0x${dataSlices[dataSlices.length-12]}`)
-            )
-          } else {
-            amounts.push(BigInt(`0x${dataSlices[8]}`))
+          const logDescription = seaportInterface.parseLog(log);
+          const matchingOffers = logDescription.args.offer.filter(
+            o => o.identifier.toString() === tokenId || 
+            o.identifier.toString() === '0');
+          const tokenCount = logDescription.args.offer.length;
+          if (matchingOffers.length === 0) {
+            return
           }
+          const amounts = logDescription.args.consideration.map(c => BigInt(c.amount))
+          // add weth
+          const wethOffers = matchingOffers.map(o => o.token === '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2' ? BigInt(o.amount) : BigInt(0));
+          amounts.push(...wethOffers)
           console.log(amounts)
-          const amount = amounts.reduce((previous,current) => previous + current, BigInt(0)) / tokenCount
-          return amount / BigInt('1000000000000000')
+          const amount = amounts.reduce((previous,current) => previous + current, BigInt(0))
+          return amount / BigInt('1000000000000000') / BigInt(tokenCount)
         }
       }).filter(n => n !== undefined)      
 
