@@ -10,6 +10,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import looksRareABI from './abi/looksRareABI.json';
+import nftxABI from './abi/nftxABI.json';
 import openseaSeaportABI from './abi/seaportABI.json';
 
 import { config } from './config';
@@ -18,6 +19,7 @@ import { BaseService, TweetRequest, TweetType } from './base.service';
 const looksRareContractAddress = '0x59728544b08ab483533076417fbbb2fd0b17ce3a'; // Don't change unless deprecated
 
 const looksInterface = new ethers.utils.Interface(looksRareABI);
+const nftxInterface = new ethers.utils.Interface(nftxABI);
 const seaportInterface = new ethers.utils.Interface(openseaSeaportABI);
 
 // This can be an array if you want to filter by multiple topics
@@ -49,7 +51,7 @@ export class Erc721SalesService extends BaseService {
     /*
     const tokenContract = new ethers.Contract(config.contract_address, erc721abi, this.provider);
     let filter = tokenContract.filters.Transfer();
-    const startingBlock = 15070829  
+    const startingBlock = 15076428  
     tokenContract.queryFilter(filter, 
       startingBlock, 
       startingBlock+1).then(events => {
@@ -57,7 +59,7 @@ export class Erc721SalesService extends BaseService {
         this.getTransactionDetails(event).then((res) => {
           if (!res) return
           console.log(res)
-          return
+          //return
           // Only tweet transfers with value (Ignore w2w transfers)
           if (res?.ether || res?.alternateValue) this.tweet(res);
           // If free mint is enabled we can tweet 0 value
@@ -134,6 +136,13 @@ export class Erc721SalesService extends BaseService {
           const relevantDataSlice = relevantData.match(/.{1,64}/g);
           return BigInt(`0x${relevantDataSlice[1]}`) / BigInt('1000000000000000');
         } else if (log.topics[0].toLowerCase() === '0x63b13f6307f284441e029836b0c22eb91eb62a7ad555670061157930ce884f4e') {
+          const parsedLog = nftxInterface.parseLog(log)
+          
+          // check that the current transfer is NFTX related
+          if (!parsedLog.args.nftIds.filter(n => BigInt(n).toString() === tokenId).length) {
+            return
+          }
+          
           // redeem, find corresponding buy
           //
           const buys = receipt.logs.filter((log2: any) => log2.topics[0].toLowerCase() === '0xf7735c8cb2a65788ca663fc8415b7c6a66cd6847d58346d8334e8d52a599d3df')
@@ -144,19 +153,21 @@ export class Erc721SalesService extends BaseService {
             })
           if (buys.length) {
             return buys.reduce((previous, current) => previous + current, BigInt(0)) / BigInt('1000000000000000')
+          } else {
+            // check swap of weth
+            const swaps = receipt.logs.filter((log2: any) => log2.topics[0].toLowerCase() === '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822')
+              .map(b => {
+                const relevantData = b.data.substring(2);
+                const relevantDataSlice = relevantData.match(/.{1,64}/g);
+                const moneyIn = BigInt(`0x${relevantDataSlice[1]}`)
+                if (moneyIn > BigInt(0))
+                  return moneyIn / BigInt('1000000000000000');
+              })
+            if (swaps.length) return swaps[0]
           }
         }
       }).filter(n => n !== undefined)
 
-      // ignore NFTX swaps
-      if (NFTX.length === 0) {
-        for (const log of receipt.logs) {
-          if (log.topics[0].toLowerCase() === '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822') {  
-            console.log('ignoring nftx swap for', transaction.hash)
-            return null
-          }
-        }
-      }
       const NLL = receipt.logs.map((log: any) => {
         if (log.topics[0].toLowerCase() === '0x975c7be5322a86cddffed1e3e0e55471a764ac2764d25176ceb8e17feef9392c') {
           const relevantData = log.data.substring(2);
@@ -190,8 +201,8 @@ export class Erc721SalesService extends BaseService {
           }
           let amounts = logDescription.args.consideration.map(c => BigInt(c.amount))
           // add weth
-          const wethOffers = matchingOffers.map(o => o.token === '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2' ? BigInt(o.amount) : BigInt(0));
-          if (wethOffers.length > 0) {
+          const wethOffers = matchingOffers.map(o => o.token === '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2' && o.amount > 0 ? BigInt(o.amount) : BigInt(0));
+          if (wethOffers.length > 0 && wethOffers[0] != BigInt(0)) {
             console.log('found weth offer, using it as amount')
             amounts = wethOffers
           }
@@ -207,15 +218,10 @@ export class Erc721SalesService extends BaseService {
         alternateValue = parseFloat(value);
       } else if (NFTX.length) {
         // find the number of token transferred to adjust amount per token
-        const relevantTransferTopic = receipt.logs.filter((t) => {
-          if (t.topics[0] === '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
-            && t.topics[2] === '0x000000000000000000000000b39185e33e8c28e0bb3dbbce24da5dea6379ae91') {
-            return true;
-          }
-          return false;
-        });        
-        const topicCount = Math.max(relevantTransferTopic.length, 1)
-        alternateValue = parseFloat(NFTX[0].toString())/topicCount/1000;
+        const redeemLog = receipt.logs.filter((log: any) => log.topics[0].toLowerCase() === '0x63b13f6307f284441e029836b0c22eb91eb62a7ad555670061157930ce884f4e')[0]
+        const parsedLog = nftxInterface.parseLog(redeemLog)
+        const tokenCount = Math.max(parsedLog.args.nftIds.length, 1)
+        alternateValue = parseFloat(NFTX[0].toString())/tokenCount/1000;
       } else if (NLL.length) {
         alternateValue = parseFloat(NLL[0].toString())/1000;
       } else if (X2Y2.length) {
