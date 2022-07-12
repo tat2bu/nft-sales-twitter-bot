@@ -43,15 +43,16 @@ export class Erc721SalesService extends BaseService {
         if (res?.ether || res?.alternateValue) this.tweet(res);
         // If free mint is enabled we can tweet 0 value
         else if (config.includeFreeMint) this.tweet(res);
-        // console.log(res);
       });
     });
-    //this.provider.resetEventsBlock(15050013)
 
     /*
+
+    // this code snippet can be useful to test a specific transaction //
+
     const tokenContract = new ethers.Contract(config.contract_address, erc721abi, this.provider);
     let filter = tokenContract.filters.Transfer();
-    const startingBlock = 15076428  
+    const startingBlock = 15080923  
     tokenContract.queryFilter(filter, 
       startingBlock, 
       startingBlock+1).then(events => {
@@ -59,7 +60,7 @@ export class Erc721SalesService extends BaseService {
         this.getTransactionDetails(event).then((res) => {
           if (!res) return
           console.log(res)
-          //return
+          return
           // Only tweet transfers with value (Ignore w2w transfers)
           if (res?.ether || res?.alternateValue) this.tweet(res);
           // If free mint is enabled we can tweet 0 value
@@ -72,6 +73,7 @@ export class Erc721SalesService extends BaseService {
   }
 
   async getTransactionDetails(tx: ethers.Event): Promise<any> {
+    // uncomment this to test a specific transaction
     // if (tx.transactionHash !== '0xcee5c725e2234fd0704e1408cdf7f71d881e67f8bf5d6696a98fdd7c0bcf52f3') return;
     
     let tokenId: string;
@@ -82,21 +84,14 @@ export class Erc721SalesService extends BaseService {
       let from = ethers.utils.defaultAbiCoder.decode(['address'], tx?.topics[1])[0];
       let to = ethers.utils.defaultAbiCoder.decode(['address'], tx?.topics[2])[0];
       
-      // ignore sniping bots initial transaction, the later will be handled afterward
+      // ignore internal transfers to contract, another transfer event will handle this 
+      // transaction afterward (the one that'll go to the buyer wallet)
       const code = await this.provider.getCode(to)
       if (code !== '0x') {
         console.log(`contract detected for ${tx.transactionHash} event index ${tx.logIndex}`)
         return
       }
 
-      // ignore internal transfers
-      if (to.toLowerCase() === '0x83c8f28c26bf6aaca652df1dbbe0e1b56f8baba2' ||
-          to.toLowerCase() === '0xae9c73fd0fd237c1c6f66fe009d24ce969e98704' ||
-          to.toLowerCase() === '0x81e7c20cc78e045d18eaa33c9fd6c3ff96a54118' ||
-          to.toLowerCase() === '0xf97e9727d8e7db7aa8f006d1742d107cf9411412' ||
-          to.toLowerCase() === '0x56dd5bbede9bfdb10a2845c4d70d4a2950163044') {
-        return
-      }
       // not an erc721 transfer
       if (!tx?.topics[3]) return
 
@@ -131,6 +126,7 @@ export class Erc721SalesService extends BaseService {
         log?.args.tokenId == tokenId);
       
       const NFTX = receipt.logs.map((log: any) => {
+        // direct buy from vault
         if (log.topics[0].toLowerCase() === '0x1cdb5ee3c47e1a706ac452b89698e5e3f2ff4f835ca72dde8936d0f4fcf37d81') {  
           const relevantData = log.data.substring(2);
           const relevantDataSlice = relevantData.match(/.{1,64}/g);
@@ -143,8 +139,7 @@ export class Erc721SalesService extends BaseService {
             return
           }
           
-          // redeem, find corresponding buy
-          //
+          // redeem, find corresponding token bought
           const buys = receipt.logs.filter((log2: any) => log2.topics[0].toLowerCase() === '0xf7735c8cb2a65788ca663fc8415b7c6a66cd6847d58346d8334e8d52a599d3df')
             .map(b => {
               const relevantData = b.data.substring(2);
@@ -154,7 +149,7 @@ export class Erc721SalesService extends BaseService {
           if (buys.length) {
             return buys.reduce((previous, current) => previous + current, BigInt(0)) / BigInt('1000000000000000')
           } else {
-            // check swap of weth
+            // we're still missing the funds, check swap of weth
             const swaps = receipt.logs.filter((log2: any) => log2.topics[0].toLowerCase() === '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822')
               .map(b => {
                 const relevantData = b.data.substring(2);
@@ -167,6 +162,9 @@ export class Erc721SalesService extends BaseService {
           }
         }
       }).filter(n => n !== undefined)
+
+      // Check all marketplaces specific events to find an alternate price
+      // in case of sweep, multiple buy, or bid
 
       const NLL = receipt.logs.map((log: any) => {
         if (log.topics[0].toLowerCase() === '0x975c7be5322a86cddffed1e3e0e55471a764ac2764d25176ceb8e17feef9392c') {
@@ -188,8 +186,8 @@ export class Erc721SalesService extends BaseService {
           return amount
         }
       }).filter(n => n !== undefined)  
-      // console.log(tx.hash, tokenId)
-      const OPENSEA_BID = receipt.logs.map((log: any) => {
+      
+      const OPENSEA_SEAPORT = receipt.logs.map((log: any) => {
         if (log.topics[0].toLowerCase() === '0x9d9af8e38d66c62e2c12f0225249fd9d721c54b83f48d9352c97c6cacdcb6f31') {
           const logDescription = seaportInterface.parseLog(log);
           const matchingOffers = logDescription.args.offer.filter(
@@ -226,8 +224,16 @@ export class Erc721SalesService extends BaseService {
         alternateValue = parseFloat(NLL[0].toString())/1000;
       } else if (X2Y2.length) {
         alternateValue = parseFloat(X2Y2[0].toString())/1000;
-      } else if (OPENSEA_BID.length) {
-        alternateValue = parseFloat(OPENSEA_BID[0].toString())/1000;
+      } else if (OPENSEA_SEAPORT.length) {
+        alternateValue = parseFloat(OPENSEA_SEAPORT[0].toString())/1000;
+      }
+
+
+      // if there is an NFTX swap involved, ignore this transfer
+      const swaps = receipt.logs.filter((log2: any) => log2.topics[0].toLowerCase() === '0x7af2bc3f8ec800c569b6555feaf16589d96a9d04a49d1645fd456d75fa0b372b')
+      if (swaps.length) {
+        console.log('nftx swap involved in this transaction, ignoring it')
+        return
       }
 
       // If ens is configured, get ens addresses
