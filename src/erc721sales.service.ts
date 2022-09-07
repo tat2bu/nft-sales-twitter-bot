@@ -45,13 +45,12 @@ export class Erc721SalesService extends BaseService {
         else if (config.includeFreeMint) this.tweet(res);
       });
     });
-    
 
     // this code snippet can be useful to test a specific transaction //
-    /*
+    return
     const tokenContract = new ethers.Contract(config.contract_address, erc721abi, this.provider);
     let filter = tokenContract.filters.Transfer();
-    const startingBlock = 15220657  
+    const startingBlock = 15478877  
     tokenContract.queryFilter(filter, 
       startingBlock, 
       startingBlock+1).then(events => {
@@ -68,7 +67,6 @@ export class Erc721SalesService extends BaseService {
         });     
       }
     });
-    */
   }
 
   async getTransactionDetails(tx: ethers.Event): Promise<any> {
@@ -146,7 +144,8 @@ export class Erc721SalesService extends BaseService {
               return BigInt(`0x${relevantDataSlice[1]}`)
             })
           if (buys.length) {
-            return buys.reduce((previous, current) => previous + current, BigInt(0)) / BigInt('1000000000000000')
+            const spent = buys.reduce((previous, current) => previous + current, BigInt(0)) / BigInt('1000000000000000')
+            return spent
           } else {
             // we're still missing the funds, check swap of weth
             const swaps = receipt.logs.filter((log2: any) => log2.topics[0].toLowerCase() === '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822')
@@ -221,7 +220,7 @@ export class Erc721SalesService extends BaseService {
         const redeemLog = receipt.logs.filter((log: any) => log.topics[0].toLowerCase() === '0x63b13f6307f284441e029836b0c22eb91eb62a7ad555670061157930ce884f4e')[0]
         const parsedLog = nftxInterface.parseLog(redeemLog)
         const tokenCount = Math.max(parsedLog.args.nftIds.length, 1)
-        alternateValue = parseFloat(NFTX[0].toString())/tokenCount/1000;
+        alternateValue = parseFloat(NFTX[0].toString())/tokenCount/100000;
       } else if (NLL.length) {
         alternateValue = parseFloat(NLL[0].toString())/1000;
       } else if (X2Y2.length) {
