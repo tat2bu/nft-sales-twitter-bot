@@ -50,7 +50,7 @@ export class Erc721SalesService extends BaseService {
     return
     const tokenContract = new ethers.Contract(config.contract_address, erc721abi, this.provider);
     let filter = tokenContract.filters.Transfer();
-    const startingBlock = 15497787  
+    const startingBlock = 15710313  
     tokenContract.queryFilter(filter, 
       startingBlock, 
       startingBlock+1).then(events => {
@@ -156,7 +156,7 @@ export class Erc721SalesService extends BaseService {
                 if (moneyIn > BigInt(0))
                   return moneyIn / BigInt('1000000000000000');
               })
-            if (swaps.length) return swaps[0]
+            if (swaps.length) return swaps.reduce((previous, current) => previous + current, BigInt(0))
           }
         }
       }).filter(n => n !== undefined)
