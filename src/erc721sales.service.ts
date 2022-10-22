@@ -50,7 +50,7 @@ export class Erc721SalesService extends BaseService {
     return
     const tokenContract = new ethers.Contract(config.contract_address, erc721abi, this.provider);
     let filter = tokenContract.filters.Transfer();
-    const startingBlock = 15710313  
+    const startingBlock = 15752278  
     tokenContract.queryFilter(filter, 
       startingBlock, 
       startingBlock+1).then(events => {
@@ -144,7 +144,7 @@ export class Erc721SalesService extends BaseService {
               return BigInt(`0x${relevantDataSlice[1]}`)
             })
           if (buys.length) {
-            const spent = buys.reduce((previous, current) => previous + current, BigInt(0)) / BigInt('100000000000000000')
+            const spent = buys.reduce((previous, current) => previous + current, BigInt(0)) / BigInt('1000000000000000')
             return spent
           } else {
             // we're still missing the funds, check swap of weth
