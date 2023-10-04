@@ -130,7 +130,7 @@ export class Erc721SalesService extends BaseService {
         if (log.topics[0].toLowerCase() === '0x1cdb5ee3c47e1a706ac452b89698e5e3f2ff4f835ca72dde8936d0f4fcf37d81') {  
           const relevantData = log.data.substring(2);
           const relevantDataSlice = relevantData.match(/.{1,64}/g);
-          return BigInt(`0x${relevantDataSlice[1]}`) / BigInt('1000000000000000');
+          return BigInt(`0x${relevantDataSlice[1]}`) / BigInt('100000000000000000');
         } else if (log.topics[0].toLowerCase() === '0x63b13f6307f284441e029836b0c22eb91eb62a7ad555670061157930ce884f4e') {
           const parsedLog = nftxInterface.parseLog(log)
           
