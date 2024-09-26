@@ -1,6 +1,9 @@
 export const config = {
   // Contract Address ======================================== //
-  contract_address: '0x23581767a106ae21c074b2276D25e5C3e136a68b',
+  contract_address: '0xf07468ead8cf26c752c676e43c814fee9c8cf402',
+  use_local_images: true,
+  local_image_path: './token_images/phunk',
+  local_bids_image_path: './bids_images/Phunk_',
   // Fiat Conversion Currency ================================ //
   // Available Options: ====================================== //
   // usd, aud, gbp, eur, cad, jpy, cny ======================= //
@@ -13,7 +16,8 @@ export const config = {
   // <txHash> =========================== The transaction hash //
   // <from> ===================================== From address //
   // <to> ========================================= To address //
-  message: '🚨 MOONBIRD #<tokenId> was sold for 💰 <ethPrice> (<fiatPrice>)\n\nfrom: <from>\nto: <to>\n\nhttps://etherscan.io/tx/<txHash>\nhttps://opensea.io/assets/0x23581767a106ae21c074b2276d25e5c3e136a68b/<tokenId>\nhttps://looksrare.org/collections/0x23581767a106ae21c074b2276d25e5c3e136a68b/<tokenId>\n\n#MOONBIRDS #NFT',
+  saleMessage: '🚨 Cryptophunks #<tokenId> was sold for 💰 <ethPrice> (<fiatPrice>)\n\nfrom: <from>\nto: <to>\n\nhttps://etherscan.io/tx/<txHash>\nhttps://opensea.io/assets/0xf07468ead8cf26c752c676e43c814fee9c8cf402/<tokenId>\nhttps://looksrare.org/collections/0xf07468ead8cf26c752c676e43c814fee9c8cf402/<tokenId>\n\n#TEST',
+  bidMessage: '🚨 Cryptophunks #<tokenId> received a bid for 💰 <ethPrice> (<fiatPrice>)\n\nfrom: <from>\n\nhttps://etherscan.io/tx/<txHash>\nhttps://opensea.io/assets/0xf07468ead8cf26c752c676e43c814fee9c8cf402/<tokenId>\nhttps://looksrare.org/collections/0xf07468ead8cf26c752c676e43c814fee9c8cf402/<tokenId>\n\n#TEST',
   // Prefer ENS over 0x address (Uses more Alchemy requests) = //
   // Available Options: ====================================== //
   // true, false ============================================= //
